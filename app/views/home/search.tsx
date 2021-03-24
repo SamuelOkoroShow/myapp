@@ -20,13 +20,7 @@ import {
 } from '../shared';
 import {forgra, platinum, shadow_blue} from '../../colors';
 
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  ScrollView,
-  Text,
-} from 'react-native';
+import {ActivityIndicator, Alert, Linking, Text} from 'react-native';
 import {Graph} from '../../provider/types';
 
 const SearchBar = styled.TextInput`
@@ -40,15 +34,19 @@ const SearchBar = styled.TextInput`
   border-bottom-width: 1px;
 `;
 
+const PaddedScrollView = styled.ScrollView``;
 const LoadingContainer = styled.View`
   margin-top: 20px;
   flex: 1;
 `;
 
+const scrollContainerStyling = {paddingBottom: 120};
+let page = 1;
+
 function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   const [query, setQuery] = useState<string>('');
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<Boolean>(false);
-  const [page, setPage] = useState<number>(1);
 
   const newBookmark = useCallback(() => {}, []);
   const appState = useContext(AppProviderContext);
@@ -88,38 +86,70 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     [appState],
   );
 
-  const isCloseToBottom = useCallback(element => {
-    const {layoutMeasurement, contentOffset, contentSize} = element;
-    const paddingToBottom = 20;
-    return (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom
-    );
-  }, []);
+  const reload = useCallback(
+    q => {
+      const graphed = async () => {
+        const sorter = 'stars';
+        const order = 'desc';
+        const graph = await fetch(
+          `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=100&page=${page}`,
+        );
+        const graphJson = await graph.json();
+        if (graphJson.items) {
+          setError('');
+          appState.setSearchResults(graphJson.items);
+          setLoading(false);
+        } else {
+          setError(graphJson.message);
+        }
+      };
+      graphed();
+    },
+    [appState],
+  );
 
-  const reload = useCallback(() => {
-    const graphed = async () => {
-      const sorter = 'stars';
-      const order = 'desc';
-      const graph = await fetch(
-        `https://api.github.com/search/repositories?q={${query}}&sort=${sorter}&order=${order}&per_page=100&page=${page}`,
-      );
-      const graphJson = await graph.json();
-      if (graphJson) {
-        appState.setSearchResults(graphJson.items);
-        setLoading(false);
-      }
-    };
-    graphed();
-  }, [appState, page, query]);
+  const loadMore = useCallback(() => {
+    setLoading(true);
+    page++;
+    reload(query);
+  }, [query, reload]);
+
+  const _renderItem = (element: Graph) => {
+    console.log('next line');
+    console.log(element);
+
+    return (
+      <GestureRecognizer
+        key={element.id}
+        onSwipeRight={() => bookmarkItem(element)}>
+        <EachResult key={element.id}>
+          <TitleHolder onPress={() => handleLinkTouch(element.html_url)}>
+            <TitleSection>
+              <Title>REPO NAME</Title>
+              <ResultTitle>{element.name}</ResultTitle>
+            </TitleSection>
+            <TitleSection>
+              <Title>REPO AUTHOR</Title>
+              <ResultTitle>{element.owner.login}</ResultTitle>
+            </TitleSection>
+          </TitleHolder>
+
+          <ToggleBookmark onPress={newBookmark}>
+            <Text>⭐</Text>
+            <ResultStars>{element.stargazers_count}</ResultStars>
+          </ToggleBookmark>
+        </EachResult>
+      </GestureRecognizer>
+    );
+  };
 
   const auto_search = useCallback(
     q => {
-      setQuery(q);
       setLoading(true);
-      setPage(1);
+      setQuery(q);
+      page = 1;
 
-      reload();
+      reload(q);
 
       if (appState.searchResults.length > 0) {
         setLoading(false);
@@ -142,38 +172,13 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
         {loading ? (
           <ActivityIndicator color={platinum} />
         ) : appState.searchResults.length > 0 ? (
-          <ScrollView
-            onScroll={({nativeEvent}) => {
-              if (isCloseToBottom(nativeEvent)) {
-                setPage(page + 1);
-                reload();
-              }
-            }}>
-            {appState.searchResults.map(element => (
-              <GestureRecognizer
-                key={element.id}
-                onSwipeRight={() => bookmarkItem(element)}>
-                <EachResult key={element.id}>
-                  <TitleHolder
-                    onPress={() => handleLinkTouch(element.html_url)}>
-                    <TitleSection>
-                      <Title>REPO NAME</Title>
-                      <ResultTitle>{element.name}</ResultTitle>
-                    </TitleSection>
-                    <TitleSection>
-                      <Title>REPO AUTHOR</Title>
-                      <ResultTitle>{element.owner.login}</ResultTitle>
-                    </TitleSection>
-                  </TitleHolder>
-
-                  <ToggleBookmark onPress={newBookmark}>
-                    <Text>⭐</Text>
-                    <ResultStars>{element.stargazers_count}</ResultStars>
-                  </ToggleBookmark>
-                </EachResult>
-              </GestureRecognizer>
-            ))}
-          </ScrollView>
+          <PaddedScrollView contentContainerStyle={scrollContainerStyling}>
+            {appState.searchResults.map(item => _renderItem(item))}
+            <BarActive>
+              <IntroTxt>Load More</IntroTxt>
+            </BarActive>
+            {error !== '' ? <IntroTxt>{error}</IntroTxt> : null}
+          </PaddedScrollView>
         ) : (
           <IntroTxt>Nothing To Report</IntroTxt>
         )}

@@ -1,10 +1,13 @@
 import React, {useCallback, useContext, useState} from 'react';
 import {StackScreenProps} from '@react-navigation/stack';
 import styled from 'styled-components/native';
-import GestureRecognizer from 'react-native-swipe-gestures';
+import {SwipeListView} from 'react-native-swipe-list-view';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 import {AppProviderContext} from '../../provider/index';
 import {
+  BackLeftBtn,
+  BackRightBtn,
   BarActive,
   BarContainer,
   BarItem,
@@ -13,15 +16,16 @@ import {
   IntroTxt,
   ResultStars,
   ResultTitle,
+  RowBack,
   Title,
   TitleHolder,
   TitleSection,
   ToggleBookmark,
 } from '../shared';
 import {forgra, platinum, shadow_blue} from '../../colors';
+import {Graph, SwipeAbleMap, SwipeList} from '../../provider/types';
 
 import {ActivityIndicator, Alert, Linking, Text} from 'react-native';
-import {Graph} from '../../provider/types';
 
 const SearchBar = styled.TextInput`
   height: 70px;
@@ -34,21 +38,27 @@ const SearchBar = styled.TextInput`
   border-bottom-width: 1px;
 `;
 
-const PaddedScrollView = styled.ScrollView``;
+const RegularView = styled.View`
+  flex: 1;
+  flex-direction: row;
+`;
+const CenteredView = styled.View`
+  height: 80px;
+  align-items: center;
+  justify-content: center;
+`;
 const LoadingContainer = styled.View`
   margin-top: 20px;
   flex: 1;
 `;
 
-const scrollContainerStyling = {paddingBottom: 120};
-let page = 1;
-
 function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   const [query, setQuery] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<Boolean>(false);
+  const [loadingMore, setLoadingMore] = useState<Boolean>(true);
+  const [page, setPage] = useState<number>(1);
 
-  const newBookmark = useCallback(() => {}, []);
   const appState = useContext(AppProviderContext);
 
   const TopBar = () => (
@@ -65,65 +75,79 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
       </BarActive>
     </BarContainer>
   );
+
   const handleLinkTouch = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
-
     if (supported) {
-      // Opening the link with some app, if the URL scheme is "http" the web link should be opened
-      // by some browser in the mobile
       await Linking.openURL(url);
     } else {
       Alert.alert(`Don't know how to open this URL: ${url}`);
     }
   };
 
-  const bookmarkItem = useCallback(
-    (element: Graph) => {
-      Alert.alert('Bookmarked ' + element.name);
-      appState.setBookmarks([...appState.bookmarks, element]);
-      Alert.prompt('Bookmark Added');
+  const deleteRow = useCallback(
+    (rowMap: SwipeAbleMap, rowKey: number) => {
+      if (rowMap[rowKey]) {
+        rowMap[rowKey].closeRow();
+      }
+      const newData = [...appState.searchResults];
+      const prevIndex = appState.searchResults.findIndex(
+        (item: Graph) => item.id === rowKey,
+      );
+      newData.splice(prevIndex, 1);
+      appState.setSearchResults(newData);
     },
     [appState],
   );
 
   const reload = useCallback(
-    q => {
+    (q: string) => {
       const graphed = async () => {
         const sorter = 'stars';
         const order = 'desc';
         const graph = await fetch(
-          `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=100&page=${page}`,
+          `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=20&page=${page}`,
         );
         const graphJson = await graph.json();
         if (graphJson.items) {
           setError('');
-          appState.setSearchResults(graphJson.items);
+          if (page === 1) {
+            appState.setSearchResults([...graphJson.items]);
+          } else {
+            setLoadingMore(false);
+            appState.setSearchResults([
+              ...appState.searchResults,
+              ...graphJson.items,
+            ]);
+          }
           setLoading(false);
         } else {
           setError(graphJson.message);
+          setLoadingMore(false);
         }
       };
       graphed();
     },
-    [appState],
+    [appState, page],
   );
 
-  const loadMore = useCallback(() => {
-    setLoading(true);
-    page++;
-    reload(query);
-  }, [query, reload]);
+  const bookmarkItem = useCallback(
+    (rowMap: SwipeAbleMap, element: Graph) => {
+      appState.setBookmarks([...appState.bookmarks, element]);
+      deleteRow(rowMap, element.id);
+    },
+    [appState, deleteRow],
+  );
 
-  const _renderItem = (element: Graph) => {
-    console.log('next line');
-    console.log(element);
+  const _renderItem = (data: SwipeList) => {
+    const element = data.item;
 
     return (
-      <GestureRecognizer
-        key={element.id}
-        onSwipeRight={() => bookmarkItem(element)}>
-        <EachResult key={element.id}>
-          <TitleHolder onPress={() => handleLinkTouch(element.html_url)}>
+      <EachResult
+        onPress={() => handleLinkTouch(element.html_url)}
+        key={element.id}>
+        <RegularView>
+          <TitleHolder>
             <TitleSection>
               <Title>REPO NAME</Title>
               <ResultTitle>{element.name}</ResultTitle>
@@ -134,29 +158,56 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
             </TitleSection>
           </TitleHolder>
 
-          <ToggleBookmark onPress={newBookmark}>
+          <ToggleBookmark>
             <Text>⭐</Text>
             <ResultStars>{element.stargazers_count}</ResultStars>
           </ToggleBookmark>
-        </EachResult>
-      </GestureRecognizer>
+        </RegularView>
+      </EachResult>
     );
   };
 
+  const renderHiddenItem = (data: SwipeList, rowMap: SwipeAbleMap) => (
+    <RowBack>
+      <BackLeftBtn onPress={() => bookmarkItem(rowMap, data.item)}>
+        <Icon name="bookmarks-outline" size={30} color={platinum} />
+      </BackLeftBtn>
+      <BackRightBtn onPress={() => deleteRow(rowMap, data.item.id)}>
+        <Icon name="trash-bin" size={30} color={platinum} />
+      </BackRightBtn>
+    </RowBack>
+  );
+
   const auto_search = useCallback(
-    q => {
+    (q: string) => {
       setLoading(true);
       setQuery(q);
-      page = 1;
+      setPage(1);
+      appState.setSearchResults([]);
 
       reload(q);
-
-      if (appState.searchResults.length > 0) {
-        setLoading(false);
-      }
     },
     [appState, reload],
   );
+
+  const Footer = () => (
+    <CenteredView>
+      {error !== '' ? (
+        <IntroTxt>{error}</IntroTxt>
+      ) : loadingMore ? (
+        <ActivityIndicator color={platinum} />
+      ) : null}
+    </CenteredView>
+  );
+
+  const _onEndReached = useCallback(() => {
+    if (appState.searchResults.length > 0) {
+      setLoadingMore(true);
+      console.log('Reached the end');
+      setPage(page => page + 1);
+      reload(query);
+    }
+  }, [appState.searchResults.length, query, reload]);
 
   return (
     <Container>
@@ -172,13 +223,19 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
         {loading ? (
           <ActivityIndicator color={platinum} />
         ) : appState.searchResults.length > 0 ? (
-          <PaddedScrollView contentContainerStyle={scrollContainerStyling}>
-            {appState.searchResults.map(item => _renderItem(item))}
-            <BarActive>
-              <IntroTxt>Load More</IntroTxt>
-            </BarActive>
-            {error !== '' ? <IntroTxt>{error}</IntroTxt> : null}
-          </PaddedScrollView>
+          <SwipeListView
+            data={appState.searchResults}
+            renderItem={_renderItem}
+            onEndReached={_onEndReached}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={() => loadingMore && <Footer />}
+            renderHiddenItem={renderHiddenItem}
+            leftOpenValue={75}
+            rightOpenValue={-75}
+            previewRowKey={'0'}
+            previewOpenValue={-40}
+            previewOpenDelay={3000}
+          />
         ) : (
           <IntroTxt>Nothing To Report</IntroTxt>
         )}

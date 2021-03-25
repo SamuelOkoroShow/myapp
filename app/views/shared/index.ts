@@ -1,5 +1,5 @@
 import styled from 'styled-components/native';
-import {forgra, oxford, platinum, shadow_blue} from '../../colors';
+import {bdazzled, forgra, oxford, platinum, shadow_blue} from '../../colors';
 
 export const Container = styled.View`
   background-color: ${oxford};
@@ -39,12 +39,46 @@ export const TitleSection = styled.View`
   flex: 1;
   margin-left: 6px;
 `;
+
+export const BackRightBtn = styled.TouchableOpacity`
+  align-items: center;
+  justify-content: center;
+  width: 75px;
+  position: absolute;
+  bottom: 0px;
+  top: 0px;
+  right: 0px;
+  background-color: ${bdazzled};
+`;
+
+export const WhiteText = styled.Text`
+  color: ${platinum}
+  font-size: 12px;
+`;
+export const BackLeftBtn = styled.TouchableOpacity`
+  align-items: center;
+  justify-content: center;
+  width: 75px;
+  bottom: 0px;
+  top: 0px;
+  left: 0;
+  position: absolute;
+  background-color: ${forgra};
+`;
+export const RowBack = styled.TouchableOpacity`
+  align-items: center;
+  background-color: ${oxford};
+  flex: 1;
+  flex-direction: row;
+  justify-content: space-between;
+`;
+
 export const ToggleBookmark = styled.TouchableOpacity`
   flex:3;
   flex-direction: row;
   border-bottom-width: 1px;
   border-color: ${shadow_blue}
-  margin:3px;
+  margin:3px 3px 0px;
   justify-content: center;
 `;
 export const ResultTitle = styled.Text`
@@ -58,10 +92,10 @@ export const ResultStars = styled.Text`
   font-size: 15px;
 `;
 
-export const EachResult = styled.View`
+export const EachResult = styled.TouchableOpacity`
   height: 80px;
   padding-top: 10px;
-  border-radius: 5px;
+  border-radius: 0px;
   box-shadow: 0px 3px 3px;
   flex-direction: row;
   border-bottom-width: 1px;
@@ -69,7 +103,7 @@ export const EachResult = styled.View`
   border-color: ${forgra};
 `;
 
-export const TitleHolder = styled.TouchableOpacity`
+export const TitleHolder = styled.View`
   flex: 7;
   flex-direction: row;
   padding-left: 5px;

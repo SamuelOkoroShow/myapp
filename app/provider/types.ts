@@ -17,3 +17,9 @@ export interface Graph {
   name: String;
   html_url: string;
 }
+export interface SwipeList {
+  item: Graph;
+}
+export interface SwipeAbleMap {
+  [x: string]: {closeRow: () => void};
+}

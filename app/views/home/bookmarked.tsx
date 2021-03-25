@@ -1,9 +1,10 @@
+// Required libraries
 import React, {useContext, useCallback} from 'react';
 import {Alert, Linking, Text} from 'react-native';
 import {StackScreenProps} from '@react-navigation/stack';
 import {SwipeListView} from 'react-native-swipe-list-view';
 
-// Next we need bookmarks from Provider
+// Next we need bookmarks from Provider and other shared compoenents
 import {AppProviderContext} from '../../provider/index';
 import {
   BackLeftBtn,
@@ -30,6 +31,7 @@ export default function Bookmarked({
 }: StackScreenProps<{Search: any}>) {
   const app_global_state = useContext(AppProviderContext);
 
+  // To replace MaterialTopTab for now
   const TopBar = () => (
     <BarContainer>
       <BarActive>
@@ -41,18 +43,17 @@ export default function Bookmarked({
     </BarContainer>
   );
 
+  // Uses your phone's preferred app for opening this types of links. Mine was Fasthub and Google Chrome.
   const handleLinkTouch = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
-
     if (supported) {
-      // Opening the link with some app, if the URL scheme is "http" the web link should be opened
-      // by some browser in the mobile
       await Linking.openURL(url);
     } else {
       Alert.alert(`Don't know how to open this URL: ${url}`);
     }
   };
 
+  // Eacj item rendered by SwipeList View. Works the same as FlatList.
   const _renderItem = (data: SwipeList) => {
     const element = data.item;
     return (
@@ -78,18 +79,18 @@ export default function Bookmarked({
     );
   };
 
+  // Deletes an item by id.
   const deleteItem = useCallback(
     (elem: Graph) => {
       const lists = app_global_state.bookmarks.filter(x => {
         return x.id !== elem.id;
       });
-
-      Alert.alert(`Deleted ${elem.name}`);
       app_global_state.setBookmarks(lists);
     },
     [app_global_state],
   );
 
+  // Renders behind renderItem.
   const renderHiddenItem = (data: SwipeList) => (
     <RowBack>
       <BackLeftBtn>

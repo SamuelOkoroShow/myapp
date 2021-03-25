@@ -1,9 +1,14 @@
+// Required Libraries
 import React, {useCallback, useContext, useState} from 'react';
-import {StackScreenProps} from '@react-navigation/stack';
 import styled from 'styled-components/native';
 import {SwipeListView} from 'react-native-swipe-list-view';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {ActivityIndicator, Alert, Linking, Text} from 'react-native';
 
+// StackScreenProps is a type
+import {StackScreenProps} from '@react-navigation/stack';
+
+// Share components
 import {AppProviderContext} from '../../provider/index';
 import {
   BackLeftBtn,
@@ -25,8 +30,7 @@ import {
 import {forgra, platinum, shadow_blue} from '../../colors';
 import {Graph, SwipeAbleMap, SwipeList} from '../../provider/types';
 
-import {ActivityIndicator, Alert, Linking, Text} from 'react-native';
-
+// Local styled components
 const SearchBar = styled.TextInput`
   height: 70px;
   border-radius: 5px;
@@ -52,15 +56,19 @@ const LoadingContainer = styled.View`
   flex: 1;
 `;
 
+// React Fuctional Component.
 function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
+  // All useState hooks
   const [query, setQuery] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<Boolean>(false);
   const [loadingMore, setLoadingMore] = useState<Boolean>(true);
   const [page, setPage] = useState<number>(1);
 
+  // All useContext hooks
   const appState = useContext(AppProviderContext);
 
+  // Tempurary TopBar to replicate MaterialTopTabs
   const TopBar = () => (
     <BarContainer>
       <BarItem
@@ -76,6 +84,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     </BarContainer>
   );
 
+  // Routing to best app for opening link function.
   const handleLinkTouch = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
@@ -85,11 +94,14 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     }
   };
 
+  // Delete row option.
   const deleteRow = useCallback(
     (rowMap: SwipeAbleMap, rowKey: number) => {
       if (rowMap[rowKey]) {
+        // Inbuilt .closeRow() function for SwipeListView
         rowMap[rowKey].closeRow();
       }
+      // Reseting the json output locally.
       const newData = [...appState.searchResults];
       const prevIndex = appState.searchResults.findIndex(
         (item: Graph) => item.id === rowKey,
@@ -100,21 +112,29 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     [appState],
   );
 
+  // Called every keyboard press or end-of-list reached.
   const reload = useCallback(
     (q: string) => {
+      // Init async fuction for Githb's database call.
       const graphed = async () => {
+        // sorting and ordering via local variables
         const sorter = 'stars';
         const order = 'desc';
+        // making the api call...
         const graph = await fetch(
           `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=20&page=${page}`,
         );
+        // seperate await call for .json.
         const graphJson = await graph.json();
+        // checking for known Github api errors
         if (graphJson.items) {
           setError('');
+          // checking for page number
           if (page === 1) {
             appState.setSearchResults([...graphJson.items]);
           } else {
             setLoadingMore(false);
+            // including additional pages to the end of the list/appState.searchResults.
             appState.setSearchResults([
               ...appState.searchResults,
               ...graphJson.items,
@@ -126,11 +146,13 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
           setLoadingMore(false);
         }
       };
+      // Calling previously created async function.
       graphed();
     },
     [appState, page],
   );
 
+  // Sends items to bookmarked store available at appState.bookmarks.
   const bookmarkItem = useCallback(
     (rowMap: SwipeAbleMap, element: Graph) => {
       appState.setBookmarks([...appState.bookmarks, element]);
@@ -167,17 +189,19 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     );
   };
 
+  // These get rendered behind renderItem.
   const renderHiddenItem = (data: SwipeList, rowMap: SwipeAbleMap) => (
     <RowBack>
       <BackLeftBtn onPress={() => bookmarkItem(rowMap, data.item)}>
-        <Icon name="bookmarks-outline" size={30} color={platinum} />
+        <Icon name="bookmarks-outline" size={21} color={platinum} />
       </BackLeftBtn>
       <BackRightBtn onPress={() => deleteRow(rowMap, data.item.id)}>
-        <Icon name="trash-bin" size={30} color={platinum} />
+        <Icon name="trash-bin" size={21} color={platinum} />
       </BackRightBtn>
     </RowBack>
   );
 
+  // Listener for keyboard pressed/search bar.
   const auto_search = useCallback(
     (q: string) => {
       setLoading(true);
@@ -190,6 +214,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     [appState, reload],
   );
 
+  // Loading for error indicator for bottom of the list.
   const Footer = () => (
     <CenteredView>
       {error !== '' ? (
@@ -200,10 +225,12 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     </CenteredView>
   );
 
+  // Function for loading more api pages when user scrolls to the bottom of the list.
   const _onEndReached = useCallback(() => {
+    // Preventative if statement here.
     if (appState.searchResults.length > 0) {
       setLoadingMore(true);
-      console.log('Reached the end');
+      // Updages page and uses aync fetch method.
       setPage(page => page + 1);
       reload(query);
     }

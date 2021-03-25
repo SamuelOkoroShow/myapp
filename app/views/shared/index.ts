@@ -1,5 +1,12 @@
 import styled from 'styled-components/native';
-import {bdazzled, forgra, oxford, platinum, shadow_blue} from '../../colors';
+import {
+  bdazzled,
+  forgra,
+  oxford,
+  platinum,
+  shadow_blue,
+  tomato,
+} from '../../colors';
 
 export const Container = styled.View`
   background-color: ${oxford};
@@ -63,7 +70,7 @@ export const BackLeftBtn = styled.TouchableOpacity`
   top: 0px;
   left: 0;
   position: absolute;
-  background-color: ${forgra};
+  background-color: ${tomato};
 `;
 export const RowBack = styled.TouchableOpacity`
   align-items: center;

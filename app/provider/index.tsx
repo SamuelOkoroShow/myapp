@@ -1,15 +1,8 @@
 import React, {createContext, useCallback, useState} from 'react';
-import {Credentials, Graph} from './types';
+// Required types
+import {AppState, Credentials, Graph} from './types';
 
-interface AppState {
-  signedIn: Boolean;
-  bookmarks: Graph[];
-  searchResults: Graph[];
-  setBookmarks: (value: Graph[]) => void;
-  setSearchResults: (value: Graph[]) => void;
-  validateSignIn: (cred: Credentials) => boolean;
-}
-
+// Optional defaults
 const appDefaults: AppState = {
   signedIn: false,
   bookmarks: [],
@@ -19,22 +12,29 @@ const appDefaults: AppState = {
   validateSignIn: () => false,
 };
 
+// Begins
 export const AppProviderContext = createContext(appDefaults);
 
 export const AppProvider: React.FC = ({children}) => {
+  // All userState hooks
   const [signedIn, setSignedIn] = useState<Boolean>(false);
   const [searchResults, setSearchResults] = useState<Graph[]>([]);
   const [bookmarks, setBookmarks] = useState<Graph[]>([]);
+  // Secret credentials
   const access_cred: Credentials = {
     email: 'hello@jordan.com',
     password: 'develop80',
   };
 
+  // Validation method for signIn
   const validateSignIn = useCallback(
     creds => {
       if (creds.email.toLowerCase() === access_cred.email) {
         if (creds.password === access_cred.password) {
+          // Set's signedIn value
           setSignedIn(true);
+
+          // "true" means signIn passed, "false" means signIn failed.
           return true;
         } else {
           return false;

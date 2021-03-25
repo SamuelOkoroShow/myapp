@@ -3,6 +3,15 @@ export interface Credentials {
   password: String;
 }
 
+export interface AppState {
+  signedIn: Boolean;
+  bookmarks: Graph[];
+  searchResults: Graph[];
+  setBookmarks: (value: Graph[]) => void;
+  setSearchResults: (value: Graph[]) => void;
+  validateSignIn: (cred: Credentials) => boolean;
+}
+
 export interface Error {
   active: Boolean;
   msg: String;

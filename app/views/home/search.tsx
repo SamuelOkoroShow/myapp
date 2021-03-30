@@ -1,14 +1,20 @@
-// Required Libraries
-import React, {useCallback, useContext, useState} from 'react';
+// Imports follow the format: external, shared, local
+import React, {useCallback, useRef, useContext, useMemo, useState} from 'react';
 import styled from 'styled-components/native';
-import {SwipeListView} from 'react-native-swipe-list-view';
-import Icon from 'react-native-vector-icons/Ionicons';
-import {ActivityIndicator, Alert, Linking, Text} from 'react-native';
+import {SwipeRow} from 'react-native-swipe-list-view';
+import {RecyclerListView, DataProvider, LayoutProvider} from 'recyclerlistview';
 
-// StackScreenProps is a type
+import Icon from 'react-native-vector-icons/Ionicons';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Linking,
+  Text,
+} from 'react-native';
 import {StackScreenProps} from '@react-navigation/stack';
 
-// Share components
+// Share here
 import {AppProviderContext} from '../../provider/index';
 import {
   BackLeftBtn,
@@ -28,18 +34,17 @@ import {
   ToggleBookmark,
 } from '../shared';
 import {forgra, platinum, shadow_blue} from '../../colors';
-import {Graph, SwipeAbleMap, SwipeList} from '../../provider/types';
+import {Graph} from '../../provider/types';
+const {width} = Dimensions.get('window');
 
 // Local styled components
 const SearchBar = styled.TextInput`
-  height: 70px;
+  flex: 1;
   border-radius: 5px;
   background-color: ${forgra};
   font-size: 17px;
   padding-left: 17px;
   color: ${platinum};
-  border-color: ${shadow_blue};
-  border-bottom-width: 1px;
 `;
 
 const RegularView = styled.View`
@@ -56,14 +61,46 @@ const LoadingContainer = styled.View`
   flex: 1;
 `;
 
-// React Fuctional Component.
+const TouchableIcon = styled.TouchableOpacity`
+  width: 50px;
+  margin: 1px;
+  justify-content: center;
+  align-items: center;
+`;
+
+const SearchRow = styled.TouchableOpacity`
+  flex-direction: row;
+  height: 80px;
+  border-color: ${shadow_blue};
+  border-bottom-width: 1px;
+`;
+
+let onBottomReachCounter = 0;
+const per_page = 12;
+
+// Uses the latest thrends in component creation and type declaration.
 function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
+  // Follows the format Memos, UseRef, UseStates, UseContexts, UseCallback, Render
+  const dataProvider = useMemo(
+    () =>
+      new DataProvider((r1, r2) => {
+        return r1 !== r2;
+      }),
+    [],
+  );
+
+  const swipeRowRef = useRef<any>(null);
+
   // All useState hooks
   const [query, setQuery] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<Boolean>(false);
-  const [loadingMore, setLoadingMore] = useState<Boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<Boolean>(false);
   const [page, setPage] = useState<number>(1);
+  const [resultCount, setResultCount] = useState<number>(0);
+  const [recycledData, setRecycledData] = useState<any>(
+    dataProvider.cloneWithRows([]),
+  );
 
   // All useContext hooks
   const appState = useContext(AppProviderContext);
@@ -84,7 +121,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     </BarContainer>
   );
 
-  // Routing to best app for opening link function.
+  // Recoomeded Link handling for React Native
   const handleLinkTouch = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
@@ -94,13 +131,67 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
     }
   };
 
+  // Reusable API call.
+  const reload = useCallback(
+    (q: string, p: number) => {
+      // We need data from Github
+      const graphed = async () => {
+        // because we can change search criteria
+        const sorter = 'stars';
+        const order = 'desc';
+        try {
+          const graph = await fetch(
+            `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=${per_page}&page=${p}`,
+          );
+
+          // because the App needs to read a .json format
+          const graphJson = await graph.json();
+
+          // In case Github returns an error message
+          if (graphJson.items) {
+            setError('');
+            // checking for page number
+            if (p === 1) {
+              setResultCount(graphJson.total_count);
+              appState.setSearchResults([...graphJson.items]);
+              setRecycledData(dataProvider.cloneWithRows([...graphJson.items]));
+            } else {
+              setLoadingMore(false);
+              appState.setSearchResults([
+                ...appState.searchResults,
+                ...graphJson.items,
+              ]);
+              setRecycledData(
+                dataProvider.cloneWithRows([
+                  ...appState.searchResults,
+                  ...graphJson.items,
+                ]),
+              );
+            }
+            setLoading(false);
+          } else {
+            setLoading(false);
+            setError(graphJson.message);
+            setLoadingMore(false);
+          }
+          if (graphJson.items.length === 0) {
+            setLoading(false);
+            setLoadingMore(false);
+            setError('No avaiable repositories for this search');
+          }
+        } catch (err) {
+          console.log(err.message);
+        }
+      };
+      // Calling previously created async function.
+      graphed();
+    },
+    [appState, dataProvider],
+  );
+
   // Delete row option.
   const deleteRow = useCallback(
-    (rowMap: SwipeAbleMap, rowKey: number) => {
-      if (rowMap[rowKey]) {
-        // Inbuilt .closeRow() function for SwipeListView
-        rowMap[rowKey].closeRow();
-      }
+    (rowKey: number) => {
       // Reseting the json output locally.
       const newData = [...appState.searchResults];
       const prevIndex = appState.searchResults.findIndex(
@@ -108,161 +199,139 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
       );
       newData.splice(prevIndex, 1);
       appState.setSearchResults(newData);
+      setRecycledData(dataProvider.cloneWithRows(newData));
+      swipeRowRef.current.manuallySwipeRow(0);
     },
-    [appState],
-  );
-
-  // Called every keyboard press or end-of-list reached.
-  const reload = useCallback(
-    (q: string) => {
-      // Init async fuction for Githb's database call.
-      const graphed = async () => {
-        // sorting and ordering via local variables
-        const sorter = 'stars';
-        const order = 'desc';
-        // making the api call...
-        const graph = await fetch(
-          `https://api.github.com/search/repositories?q={${q}}&sort=${sorter}&order=${order}&per_page=20&page=${page}`,
-        );
-        // seperate await call for .json.
-        const graphJson = await graph.json();
-        // checking for known Github api errors
-        if (graphJson.items) {
-          setError('');
-          // checking for page number
-          if (page === 1) {
-            appState.setSearchResults([...graphJson.items]);
-          } else {
-            setLoadingMore(false);
-            // including additional pages to the end of the list/appState.searchResults.
-            appState.setSearchResults([
-              ...appState.searchResults,
-              ...graphJson.items,
-            ]);
-          }
-          setLoading(false);
-        } else {
-          setError(graphJson.message);
-          setLoadingMore(false);
-        }
-      };
-      // Calling previously created async function.
-      graphed();
-    },
-    [appState, page],
+    [appState, dataProvider],
   );
 
   // Sends items to bookmarked store available at appState.bookmarks.
   const bookmarkItem = useCallback(
-    (rowMap: SwipeAbleMap, element: Graph) => {
+    (element: Graph) => {
       appState.setBookmarks([...appState.bookmarks, element]);
-      deleteRow(rowMap, element.id);
+      deleteRow(element.id);
+      swipeRowRef.current.closeRow();
+      //console.log(swipeRowRef.current);
     },
     [appState, deleteRow],
   );
 
-  const _renderItem = (data: SwipeList) => {
-    const element = data.item;
-
-    return (
-      <EachResult
-        onPress={() => handleLinkTouch(element.html_url)}
-        key={element.id}>
-        <RegularView>
-          <TitleHolder>
-            <TitleSection>
-              <Title>REPO NAME</Title>
-              <ResultTitle>{element.name}</ResultTitle>
-            </TitleSection>
-            <TitleSection>
-              <Title>REPO AUTHOR</Title>
-              <ResultTitle>{element.owner.login}</ResultTitle>
-            </TitleSection>
-          </TitleHolder>
-
-          <ToggleBookmark>
-            <Text>⭐</Text>
-            <ResultStars>{element.stargazers_count}</ResultStars>
-          </ToggleBookmark>
-        </RegularView>
-      </EachResult>
-    );
-  };
-
   // These get rendered behind renderItem.
-  const renderHiddenItem = (data: SwipeList, rowMap: SwipeAbleMap) => (
+  const RenderHiddenItem = (data: Graph) => (
     <RowBack>
-      <BackLeftBtn onPress={() => bookmarkItem(rowMap, data.item)}>
+      <BackLeftBtn onPress={() => bookmarkItem(data)}>
         <Icon name="bookmarks-outline" size={21} color={platinum} />
       </BackLeftBtn>
-      <BackRightBtn onPress={() => deleteRow(rowMap, data.item.id)}>
+      <BackRightBtn onPress={() => deleteRow(data.id)}>
         <Icon name="trash-bin" size={21} color={platinum} />
       </BackRightBtn>
     </RowBack>
   );
 
-  // Listener for keyboard pressed/search bar.
-  const auto_search = useCallback(
-    (q: string) => {
-      setLoading(true);
-      setQuery(q);
-      setPage(1);
-      appState.setSearchResults([]);
+  const _renderItem = (type: any, data: Graph) => {
+    const element = data;
 
-      reload(q);
-    },
-    [appState, reload],
-  );
+    return (
+      <SwipeRow ref={swipeRowRef} leftOpenValue={75} rightOpenValue={-75}>
+        <RenderHiddenItem {...data} />
+        <EachResult
+          onPress={() => handleLinkTouch(element.html_url)}
+          key={element.id}>
+          <RegularView>
+            <TitleHolder>
+              <TitleSection>
+                <Title>REPO NAME</Title>
+                <ResultTitle>{element.name}</ResultTitle>
+              </TitleSection>
+              <TitleSection>
+                <Title>REPO AUTHOR</Title>
+                <ResultTitle>{element.owner.login}</ResultTitle>
+              </TitleSection>
+            </TitleHolder>
+
+            <ToggleBookmark>
+              <Text>⭐</Text>
+              <ResultStars>{element.stargazers_count}</ResultStars>
+            </ToggleBookmark>
+          </RegularView>
+        </EachResult>
+      </SwipeRow>
+    );
+  };
+
+  // Listener for keyboard pressed/search bar.
+  const _search = useCallback(() => {
+    setLoading(true);
+    setPage(1);
+    appState.setSearchResults([]);
+
+    reload(query, 1);
+  }, [appState, query, reload]);
 
   // Loading for error indicator for bottom of the list.
   const Footer = () => (
     <CenteredView>
-      {error !== '' ? (
+      {error !== '' || !loadingMore ? (
         <IntroTxt>{error}</IntroTxt>
-      ) : loadingMore ? (
+      ) : (
         <ActivityIndicator color={platinum} />
-      ) : null}
+      )}
     </CenteredView>
   );
 
   // Function for loading more api pages when user scrolls to the bottom of the list.
   const _onEndReached = useCallback(() => {
     // Preventative if statement here.
-    if (appState.searchResults.length > 0) {
+    //console.log(`end reached(${onBottomReachCounter})`);
+    onBottomReachCounter++;
+
+    if (appState.searchResults.length > 0 && resultCount > per_page * page) {
       setLoadingMore(true);
-      // Updages page and uses aync fetch method.
-      setPage(page => page + 1);
-      reload(query);
+      reload(query, page + 1);
+      setPage(page + 1);
     }
-  }, [appState.searchResults.length, query, reload]);
+  }, [appState.searchResults.length, page, query, reload, resultCount]);
+
+  const _layoutProvider = new LayoutProvider(
+    () => 80,
+    (type, dim) => {
+      dim.height = 80;
+      dim.width = width;
+    },
+  );
 
   return (
     <Container>
       <TopBar />
-      <SearchBar
-        placeholder="Search GitHub..."
-        value={query}
-        maxLength={15}
-        onChangeText={auto_search}
-        placeholderTextColor={platinum}
-      />
+      <SearchRow>
+        <SearchBar
+          placeholder="Search GitHub..."
+          value={query}
+          maxLength={35}
+          onChangeText={setQuery}
+          placeholderTextColor={platinum}
+        />
+        <TouchableIcon>
+          <Icon name="close" size={20} color={platinum} />
+        </TouchableIcon>
+        <TouchableIcon onPress={_search}>
+          <Icon name="search" size={20} color={platinum} />
+        </TouchableIcon>
+      </SearchRow>
       <LoadingContainer>
         {loading ? (
           <ActivityIndicator color={platinum} />
         ) : appState.searchResults.length > 0 ? (
-          <SwipeListView
-            data={appState.searchResults}
-            renderItem={_renderItem}
+          <RecyclerListView
+            onEndReachedThreshold={0.2}
+            renderFooter={Footer}
             onEndReached={_onEndReached}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={() => loadingMore && <Footer />}
-            renderHiddenItem={renderHiddenItem}
-            leftOpenValue={75}
-            rightOpenValue={-75}
-            previewRowKey={'0'}
-            previewOpenValue={-40}
-            previewOpenDelay={3000}
+            layoutProvider={_layoutProvider}
+            dataProvider={recycledData}
+            rowRenderer={_renderItem}
           />
+        ) : error !== '' ? (
+          <IntroTxt>{error}</IntroTxt>
         ) : (
           <IntroTxt>Nothing To Report</IntroTxt>
         )}

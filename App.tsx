@@ -1,4 +1,4 @@
-// Navigation file imports
+// Imports follow the format: external, shared, local
 import 'react-native-gesture-handler';
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
@@ -15,10 +15,8 @@ import {AppProvider} from './app/provider';
 //Navigation Initializers
 const Stack = createStackNavigator();
 
-//Functional component
-// This controls the navigation in the Home view and in the Login view.
 const App: React.FC = () => {
-  // Formerly had this as a Tabbed Navigation. Too many issues with that. May revert later.
+  // Tab view kept crashing
   const Home = () => (
     <Stack.Navigator headerMode="none">
       <Stack.Screen

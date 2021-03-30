@@ -1,4 +1,4 @@
-// Required libraries
+// Imports follow the format: external, shared, local
 import React, {useContext, useCallback} from 'react';
 import {Alert, Linking, Text} from 'react-native';
 import {StackScreenProps} from '@react-navigation/stack';
@@ -53,7 +53,7 @@ export default function Bookmarked({
     }
   };
 
-  // Eacj item rendered by SwipeList View. Works the same as FlatList.
+  // Each item rendered by SwipeList View. Works the same as FlatList.
   const _renderItem = (data: SwipeList) => {
     const element = data.item;
     return (
@@ -90,11 +90,11 @@ export default function Bookmarked({
     [app_global_state],
   );
 
-  // Renders behind renderItem.
+  // Renders behind renderItem because of SwipeListView.
   const renderHiddenItem = (data: SwipeList) => (
     <RowBack>
       <BackLeftBtn>
-        <WhiteText>Archive</WhiteText>
+        <WhiteText>Archived</WhiteText>
       </BackLeftBtn>
       <BackRightBtn onPress={() => deleteItem(data.item)}>
         <WhiteText>Trash</WhiteText>
@@ -114,7 +114,8 @@ export default function Bookmarked({
           rightOpenValue={-75}
           previewRowKey={'0'}
           previewOpenValue={-40}
-          previewOpenDelay={3000}
+          previewOpenDelay={1000}
+          disableRightSwipe
         />
       ) : (
         <IntroTxt>Bookmarks go here</IntroTxt>

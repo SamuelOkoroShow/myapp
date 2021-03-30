@@ -1,5 +1,6 @@
+// Imports follow the format: external, shared, local
 import React, {createContext, useCallback, useState} from 'react';
-// Required types
+// shared types
 import {AppState, Credentials, Graph} from './types';
 
 // Optional defaults
@@ -26,15 +27,15 @@ export const AppProvider: React.FC = ({children}) => {
     password: 'develop80',
   };
 
-  // Validation method for signIn
+  // Validation method for Login View.
   const validateSignIn = useCallback(
     creds => {
       if (creds.email.toLowerCase() === access_cred.email) {
         if (creds.password === access_cred.password) {
-          // Set's signedIn value
+          // Set's signedIn value for in-app references
           setSignedIn(true);
 
-          // "true" means signIn passed, "false" means signIn failed.
+          // "true" means signIn passed.
           return true;
         } else {
           return false;

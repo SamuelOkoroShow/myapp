@@ -75,7 +75,14 @@ const SearchRow = styled.TouchableOpacity`
   border-bottom-width: 1px;
 `;
 
-let onBottomReachCounter = 0;
+const Overlay = styled.View`
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  background-color: ${forgra};
+`;
+
+//let onBottomReachCounter = 0;
 const per_page = 12;
 
 // Uses the latest thrends in component creation and type declaration.
@@ -90,6 +97,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   );
 
   const swipeRowRef = useRef<any>(null);
+  const textInputRef = useRef<any>(null);
 
   // All useState hooks
   const [query, setQuery] = useState<string>('');
@@ -271,11 +279,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   // Loading for error indicator for bottom of the list.
   const Footer = () => (
     <CenteredView>
-      {error !== '' || !loadingMore ? (
-        <IntroTxt>{error}</IntroTxt>
-      ) : (
-        <ActivityIndicator color={platinum} />
-      )}
+      <ActivityIndicator color={platinum} />
     </CenteredView>
   );
 
@@ -283,7 +287,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   const _onEndReached = useCallback(() => {
     // Preventative if statement here.
     //console.log(`end reached(${onBottomReachCounter})`);
-    onBottomReachCounter++;
+    //onBottomReachCounter++;
 
     if (appState.searchResults.length > 0 && resultCount > per_page * page) {
       setLoadingMore(true);
@@ -307,11 +311,16 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
         <SearchBar
           placeholder="Search GitHub..."
           value={query}
+          ref={textInputRef}
           maxLength={35}
           onChangeText={setQuery}
           placeholderTextColor={platinum}
         />
-        <TouchableIcon>
+        <TouchableIcon
+          onPress={() => {
+            setQuery('');
+            textInputRef.current.clear();
+          }}>
           <Icon name="close" size={20} color={platinum} />
         </TouchableIcon>
         <TouchableIcon onPress={_search}>
@@ -319,22 +328,27 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
         </TouchableIcon>
       </SearchRow>
       <LoadingContainer>
-        {loading ? (
-          <ActivityIndicator color={platinum} />
-        ) : appState.searchResults.length > 0 ? (
+        {appState.searchResults.length > 0 ? (
           <RecyclerListView
-            onEndReachedThreshold={0.2}
+            onEndReachedThreshold={0.3}
             renderFooter={Footer}
             onEndReached={_onEndReached}
             layoutProvider={_layoutProvider}
             dataProvider={recycledData}
             rowRenderer={_renderItem}
           />
+        ) : null}
+        {loading ? (
+          <Overlay>
+            <ActivityIndicator color={platinum} />
+          </Overlay>
         ) : error !== '' ? (
           <IntroTxt>{error}</IntroTxt>
-        ) : (
-          <IntroTxt>Nothing To Report</IntroTxt>
-        )}
+        ) : appState.searchResults.length <= 0 ? (
+          <Overlay>
+            <IntroTxt>Nothing To Report</IntroTxt>
+          </Overlay>
+        ) : null}
       </LoadingContainer>
     </Container>
   );

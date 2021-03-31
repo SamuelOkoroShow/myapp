@@ -3,6 +3,7 @@ import React, {useCallback, useRef, useContext, useMemo, useState} from 'react';
 import styled from 'styled-components/native';
 import {SwipeRow} from 'react-native-swipe-list-view';
 import {RecyclerListView, DataProvider, LayoutProvider} from 'recyclerlistview';
+import {debounce} from 'lodash';
 
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
@@ -90,7 +91,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   // Follows the format Memos, UseRef, UseStates, UseContexts, UseCallback, Render
   const dataProvider = useMemo(
     () =>
-      new DataProvider((r1, r2) => {
+      new DataProvider((r1: any, r2: any) => {
         return r1 !== r2;
       }),
     [],
@@ -268,13 +269,17 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   };
 
   // Listener for keyboard pressed/search bar.
-  const _search = useCallback(() => {
-    setLoading(true);
-    setPage(1);
-    appState.setSearchResults([]);
+  const _search = useCallback(
+    q => {
+      setQuery(q);
+      setLoading(true);
+      setPage(1);
+      appState.setSearchResults([]);
 
-    reload(query, 1);
-  }, [appState, query, reload]);
+      reload(q, 1);
+    },
+    [appState, reload],
+  );
 
   // Loading for error indicator for bottom of the list.
   const Footer = () => (
@@ -298,11 +303,18 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
 
   const _layoutProvider = new LayoutProvider(
     () => 80,
-    (type, dim) => {
+    (type: any, dim: {height: number; width: number}) => {
       dim.height = 80;
       dim.width = width;
     },
   );
+
+  //const doYourThingDebounced = debounce(_search, 2000);
+
+  const debounceHandler = useCallback(event => {
+    setQuery(event);
+    //doYourThingDebounced(event);
+  }, []);
 
   return (
     <Container>
@@ -313,7 +325,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
           value={query}
           ref={textInputRef}
           maxLength={35}
-          onChangeText={setQuery}
+          onChangeText={debounceHandler}
           placeholderTextColor={platinum}
         />
         <TouchableIcon

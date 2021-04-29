@@ -269,17 +269,13 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
   };
 
   // Listener for keyboard pressed/search bar.
-  const _search = useCallback(
-    q => {
-      setQuery(q);
-      setLoading(true);
-      setPage(1);
-      appState.setSearchResults([]);
+  const _search = useCallback(() => {
+    setLoading(true);
+    setPage(1);
+    appState.setSearchResults([]);
 
-      reload(q, 1);
-    },
-    [appState, reload],
-  );
+    reload(query, 1);
+  }, [appState, query, reload]);
 
   // Loading for error indicator for bottom of the list.
   const Footer = () => (
@@ -311,10 +307,10 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
 
   //const doYourThingDebounced = debounce(_search, 2000);
 
-  const debounceHandler = useCallback(event => {
-    setQuery(event);
-    //doYourThingDebounced(event);
-  }, []);
+  // const debounceHandler = useCallback(event => {
+  //   setQuery(event);
+  //   //doYourThingDebounced(event);
+  // }, []);
 
   return (
     <Container>
@@ -325,7 +321,7 @@ function Search({navigation}: StackScreenProps<{Bookmarks: any}>) {
           value={query}
           ref={textInputRef}
           maxLength={35}
-          onChangeText={debounceHandler}
+          onChangeText={setQuery}
           placeholderTextColor={platinum}
         />
         <TouchableIcon
